@@ -1,0 +1,208 @@
+-- โหลด Rayfield UI Library
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Speed Hub",
+   LoadingTitle = "กำลังโหลด Speed Hub...",
+   LoadingSubtitle = "Universal Script (No Key Required)",
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = "SpeedHubConfig",
+      FileName = "MainConfig"
+   },
+   Discord = {
+      Enabled = false
+   },
+   KeySystem = false
+})
+
+---------------------------------------------------------
+-- TAB 1: Player (ความเร็ว / กระโดด)
+---------------------------------------------------------
+local PlayerTab = Window:CreateTab("Player", 4483362458)
+
+PlayerTab:CreateSlider({
+   Name = "ความเร็วการเดิน (WalkSpeed)",
+   Range = {16, 300},
+   Increment = 1,
+   Suffix = " Speed",
+   CurrentValue = 16,
+   Flag = "SpeedFlag",
+   Callback = function(Value)
+      local character = game.Players.LocalPlayer.Character
+      if character and character:FindFirstChild("Humanoid") then
+         character.Humanoid.WalkSpeed = Value
+      end
+   end,
+})
+
+PlayerTab:CreateSlider({
+   Name = "แรงกระโดด (JumpPower)",
+   Range = {50, 500},
+   Increment = 5,
+   Suffix = " Power",
+   CurrentValue = 50,
+   Flag = "JumpFlag",
+   Callback = function(Value)
+      local character = game.Players.LocalPlayer.Character
+      if character and character:FindFirstChild("Humanoid") then
+         character.Humanoid.UseJumpPower = true
+         character.Humanoid.JumpPower = Value
+      end
+   end,
+})
+
+---------------------------------------------------------
+-- TAB 2: Combat (Aimbot)
+---------------------------------------------------------
+local CombatTab = Window:CreateTab("Combat", 4483362458)
+
+_G.AimbotEnabled = false
+
+CombatTab:CreateToggle({
+   Name = "Aimbot (ล็อคหัวผู้เล่นใกล้สุด)",
+   CurrentValue = false,
+   Flag = "AimbotFlag",
+   Callback = function(Value)
+      _G.AimbotEnabled = Value
+   end,
+})
+
+-- ระบบ Aimbot ทำงานเมื่อกดค้างที่คลิกขวา (Right Mouse Button)
+local Camera = workspace.CurrentCamera
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+
+local function GetClosestPlayer()
+   local ClosestPlayer = nil
+   local ShortestDistance = math.huge
+
+   for _, player in pairs(Players:GetPlayers()) do
+      if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+         local Head = player.Character.Head
+         local Pos, OnScreen = Camera:WorldToViewportPoint(Head.Position)
+         if OnScreen then
+            local MousePos = UserInputService:GetMouseLocation()
+            local Distance = (Vector2.new(Pos.X, Pos.Y) - MousePos).Magnitude
+            if Distance < ShortestDistance then
+               ShortestDistance = Distance
+               ClosestPlayer = player
+            end
+         end
+      end
+   end
+   return ClosestPlayer
+end
+
+game:GetService("RunService").RenderStepped:Connect(function()
+   if _G.AimbotEnabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+      local Target = GetClosestPlayer()
+      if Target and Target.Character and Target.Character:FindFirstChild("Head") then
+         Camera.CFrame = CFrame.new(Camera.CFrame.Position, Target.Character.Head.Position)
+      end
+   end
+end)
+
+---------------------------------------------------------
+-- TAB 3: Stealth (หายตัว)
+---------------------------------------------------------
+local StealthTab = Window:CreateTab("Stealth", 4483362458)
+
+StealthTab:CreateToggle({
+   Name = "หายตัว (Invisible)",
+   CurrentValue = false,
+   Flag = "InvisFlag",
+   Callback = function(Value)
+      local character = LocalPlayer.Character
+      if character then
+         for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") or part:IsA("Decal") then
+               if part.Name ~= "HumanoidRootPart" then
+                  part.Transparency = Value and 1 or 0
+               end
+            end
+         end
+      end
+   end,
+})
+
+---------------------------------------------------------
+-- TAB 4: Visuals (ESP ระยะไกล)
+---------------------------------------------------------
+local VisualsTab = Window:CreateTab("Visuals", 4483362458)
+
+_G.ESPEnabled = false
+
+VisualsTab:CreateToggle({
+   Name = "ESP ผู้เล่นระยะไกล + บอกระยะ",
+   CurrentValue = false,
+   Flag = "ESPFlag",
+   Callback = function(Value)
+      _G.ESPEnabled = Value
+      if not Value then
+         for _, player in pairs(Players:GetPlayers()) do
+            if player.Character and player.Character:FindFirstChild("ESP_Highlight") then
+               player.Character.ESP_Highlight:Destroy()
+            end
+            if player.Character and player.Character:FindFirstChild("Head") and player.Character.Head:FindFirstChild("ESP_Billboard") then
+               player.Character.Head.ESP_Billboard:Destroy()
+            end
+         end
+      end
+   end,
+})
+
+-- ระบบอัปเดต ESP และคำนวณระยะทาง
+game:GetService("RunService").Heartbeat:Connect(function()
+   if _G.ESPEnabled then
+      for _, player in pairs(Players:GetPlayers()) do
+         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Head") then
+            -- Highlight กรอบเรืองแสง
+            if not player.Character:FindFirstChild("ESP_Highlight") then
+               local highlight = Instance.new("Highlight")
+               highlight.Name = "ESP_Highlight"
+               highlight.FillColor = Color3.fromRGB(255, 50, 50)
+               highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+               highlight.FillTransparency = 0.5
+               highlight.Parent = player.Character
+            end
+
+            -- ป้ายชื่อ + ระยะทาง
+            local distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude)
+            local head = player.Character.Head
+            local billboard = head:FindFirstChild("ESP_Billboard")
+
+            if not billboard then
+               billboard = Instance.new("BillboardGui")
+               billboard.Name = "ESP_Billboard"
+               billboard.AlwaysOnTop = true
+               billboard.Size = UDim2.new(0, 200, 0, 50)
+               billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+
+               local label = Instance.new("TextLabel")
+               label.Name = "TextLabel"
+               label.Size = UDim2.new(1, 0, 1, 0)
+               label.BackgroundTransparency = 1
+               label.TextColor3 = Color3.fromRGB(255, 255, 255)
+               label.TextStrokeTransparency = 0
+               label.TextSize = 14
+               label.Parent = billboard
+
+               billboard.Parent = head
+            end
+
+            if billboard:FindFirstChild("TextLabel") then
+               billboard.TextLabel.Text = player.Name .. "\n[" .. distance .. "m]"
+            end
+         end
+      end
+   end
+end)
+
+Rayfield:Notify({
+   Title = "Speed Hub Loaded!",
+   Content = "พร้อมใช้งานทุกฟังก์ชัน ไม่มีคีย์!",
+   Duration = 5,
+   Image = 4483362458,
+})
